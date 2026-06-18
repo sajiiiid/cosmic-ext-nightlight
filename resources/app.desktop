@@ -2,8 +2,8 @@
 Name=Cosmic Nightlight
 Comment=A night light and screen temperature controller for the COSMIC desktop.
 Type=Application
-Icon=com.github.sajiiiid.CosmicNightlight
-Exec=cosmic-nightlight %F
+Icon=com.github.sajiiiid.CosmicExtNightlight
+Exec=cosmic-ext-nightlight %F
 Terminal=false
 StartupNotify=true
 Categories=COSMIC

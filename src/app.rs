@@ -6,6 +6,7 @@ use cosmic::iced::platform_specific::shell::wayland::commands::popup::{destroy_p
 use cosmic::iced::{futures, window::Id, Limits, Subscription};
 use cosmic::prelude::*;
 use cosmic::widget;
+use cosmic::Application;
 use futures::SinkExt;
 
 /// ### The Application Model (State)
@@ -16,6 +17,8 @@ pub struct AppModel {
     /// Stores the unique Wayland window identifier for the active applet popup, if open.
     popup: Option<Id>,
     /// System configuration settings handle managed by the `cosmic-config` service.
+    config_handler: cosmic_config::Config,
+    /// The current display color temperature value in Kelvin (e.g., 3000K - 6500K).
     config: Config,
     /// The current display color temperature value in Kelvin (e.g., 3000K - 6500K).
     temperature: u16, 
@@ -24,10 +27,18 @@ pub struct AppModel {
 impl Default for AppModel {
     /// Provides standard fallback state initialization metrics when the applet launches.
     fn default() -> Self {
+        let app_id = "com.github.sajiiiid.CosmicExtNightlight";
+        let config_handler = cosmic_config::Config::new(app_id, Config::VERSION).unwrap();
+        let config = match Config::get_entry(&config_handler) {
+            Ok(config) => config,
+            Err((_errors, config)) => config,
+        };
+
         Self {
             core: cosmic::Core::default(),
             popup: None,
-            config: Config::default(),
+            config_handler,
+            config,
             temperature: 6500, // Default to clean daylight white
         }
     }
@@ -55,7 +66,7 @@ impl cosmic::Application for AppModel {
     type Executor = cosmic::executor::Default;
     type Flags = ();
     type Message = Message;
-    const APP_ID: &'static str = "com.github.sajiiiid.CosmicNightlight";
+    const APP_ID: &'static str = "com.github.sajiiiid.CosmicExtNightlight";
 
     /// Read-only accessor exposing core context metadata to the layout runtime.
     fn core(&self) -> &cosmic::Core {
@@ -73,20 +84,40 @@ impl cosmic::Application for AppModel {
         core: cosmic::Core,
         _flags: Self::Flags,
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
-        let app = AppModel {
-            core,
-            // Safely verify and parse user-space configuration settings via the desktop daemon
-            config: cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
-                .map(|context| match Config::get_entry(&context) {
-                    Ok(config) => config,
-                    Err((_errors, config)) => config,
-                })
-                .unwrap_or_default(),
-            temperature: 6500,
-            ..Default::default()
+        let config_handler = cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
+            .unwrap_or_else(|_| cosmic_config::Config::new(Self::APP_ID, Config::VERSION).unwrap());
+
+        let config = match Config::get_entry(&config_handler) {
+            Ok(config) => config,
+            Err((_errors, config)) => config,
         };
 
-        (app, Task::none())
+        let temperature = config.temperature;
+        println!("Applet initialized. Loaded temperature: {}K", temperature);
+        
+        let temp_str = temperature.to_string();
+
+        let app = AppModel {
+            core,
+            config_handler,
+            config,
+            temperature,
+            popup: None,
+        };
+
+        // Apply the initial temperature from config on startup
+        let init_task = Task::perform(
+            async move {
+                let _ = tokio::process::Command::new("gammastep")
+                    .arg("-O")
+                    .arg(temp_str)
+                    .status()
+                    .await;
+            },
+            |_| (),
+        ).map(|_| cosmic::Action::None);
+
+        (app, init_task)
     }
 
     /// Intercepts window/popup termination requests issued by the underlying window manager.
@@ -146,20 +177,65 @@ impl cosmic::Application for AppModel {
             Message::SubscriptionChannel => {}
             
             Message::UpdateConfig(config) => {
-                self.config = config;
+                if config.temperature != self.temperature {
+                    println!("Config updated externally. Setting temperature to: {}K", config.temperature);
+                    self.temperature = config.temperature;
+                    self.config = config;
+                    
+                    let temp_str = self.temperature.to_string();
+                    return Task::perform(
+                        async move {
+                            let _ = tokio::process::Command::new("gammastep")
+                                .arg("-O")
+                                .arg(temp_str)
+                                .status()
+                                .await;
+                        },
+                        |_| (),
+                    ).map(|_| cosmic::Action::None);
+                } else {
+                    self.config = config;
+                }
             }
             
             Message::TemperatureChanged(temp) => {
+                if temp == self.temperature {
+                    return Task::none();
+                }
+
                 self.temperature = temp;
+                self.config.temperature = temp;
+                
+                let temp_str = temp.to_string();
+                println!("Temperature changed to {}K. Saving to config...", temp);
                 
                 // Native system call: Pipes temperature parameters down into the gammastep executable.
-                // Note: Actual desktop tint shifts require cosmic-comp's Wayland protocols to process.
-                let _ = std::process::Command::new("gammastep")
-                    .arg("-O")
-                    .arg(temp.to_string())
-                    .spawn();
+                // We use Task::perform to avoid zombie processes by awaiting the status.
+                let spawn_task = Task::perform(
+                    async move {
+                        let _ = tokio::process::Command::new("gammastep")
+                            .arg("-O")
+                            .arg(temp_str)
+                            .status()
+                            .await;
+                    },
+                    |_| (),
+                ).map(|_| cosmic::Action::None);
 
-                println!("Slider moved. Target temperature sent to gammastep: {}K", self.temperature);
+                // Persist the new temperature setting to the config file
+                let config_to_save = self.config.clone();
+                let handler = self.config_handler.clone();
+                let config_task = Task::perform(
+                    async move {
+                        let _ = config_to_save.write_entry(&handler);
+                    },
+                    |_| (),
+                ).map(|_| cosmic::Action::None);
+
+                return Task::batch(vec![
+                    spawn_task,
+                    config_task,
+                ]);
             }
             
             Message::TogglePopup => {

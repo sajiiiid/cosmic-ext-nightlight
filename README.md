@@ -41,7 +41,7 @@ If packaging for a Linux distribution, vendor dependencies locally with the `ven
 ```sh
 just vendor
 just build-vendored
-just rootdir=debian/cosmic-nightlight prefix=/usr install
+just rootdir=debian/cosmic-ext-nightlight prefix=/usr install
 
 ```
 

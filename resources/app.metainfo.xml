@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.github.sajiiiid.CosmicNightlight</id>
+  <id>com.github.sajiiiid.CosmicExtNightlight</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MPL-2.0</project_license>
   <name>Cosmic Nightlight</name>
   <summary>A night light and screen temperature controller for the COSMIC desktop.</summary>
   <icon type="remote" width="64" height="64" scale="1">
-    https://github.com/sajiiiid/cosmic-nightlight.git/raw/main/resources/icons/hicolor/scalable/apps/icon.svg
+    https://github.com/sajiiiid/cosmic-ext-nightlight.git/raw/main/resources/icons/hicolor/scalable/apps/icon.svg
   </icon>
-  <url type="vcs-browser">https://github.com/sajiiiid/cosmic-nightlight.git</url>
-  <launchable type="desktop-id">com.github.sajiiiid.CosmicNightlight.desktop</launchable>
+  <url type="vcs-browser">https://github.com/sajiiiid/cosmic-ext-nightlight.git</url>
+  <launchable type="desktop-id">com.github.sajiiiid.CosmicExtNightlight.desktop</launchable>
   <provides>
     <id>com.system76.CosmicApplet</id>
     <binaries>
-      <binary>cosmic-nightlight</binary>
+      <binary>cosmic-ext-nightlight</binary>
     </binaries>
   </provides>
   <requires>

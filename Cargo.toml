@@ -1,10 +1,10 @@
 [package]
-name = "cosmic-nightlight"
+name = "cosmic-ext-nightlight"
 version = "0.1.0"
 edition = "2024"
 license = "MPL-2.0"
 description = "A night light and screen temperature controller for the COSMIC desktop."
-repository = "https://github.com/sajiiiid/cosmic-nightlight.git"
+repository = "https://github.com/sajiiiid/cosmic-ext-nightlight.git"
 
 [dependencies]
 i18n-embed-fl = "0.10"

@@ -1,5 +1,5 @@
-name := 'cosmic-nightlight'
-appid := 'com.github.sajiiiid.CosmicNightlight'
+name := 'cosmic-ext-nightlight'
+appid := 'com.github.sajiiiid.CosmicExtNightlight'
 
 rootdir := ''
 prefix := '/usr'
